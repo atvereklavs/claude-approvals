@@ -23,11 +23,18 @@ public static class Program
         store.ProjectRules = new ProjectRuleStore();
         store.OnOutcome += (req, decision, source) => DecisionLog.Append(req, decision, source);
 
+        var registry = new SessionRegistry();
+        store.OnEnqueue += req => registry.IncPending(req.Payload);
+        store.OnResolve += (req, _, _) => registry.DecPending(req.Payload);
+
         var port = int.TryParse(Environment.GetEnvironmentVariable("CLAUDE_APPROVALS_PORT"), out var p) ? p : 8790;
         var token = LoadToken();
-        var server = new ApprovalServer(store, port, token);
+        var server = new ApprovalServer(store, port, token, registry);
 
         var popup = new PopupWindow(store);
+        var cockpit = new CockpitWindow(registry);
+        if (Environment.GetEnvironmentVariable("CLAUDE_APPROVALS_COCKPIT") == "1")
+            cockpit.Show(); // dev/E2E: open at startup
 
         store.OnEnqueue += _ => app.Dispatcher.BeginInvoke(popup.ShowNext);
         store.OnResolve += (_, _, _) => app.Dispatcher.BeginInvoke(popup.ShowNext);
@@ -66,6 +73,8 @@ public static class Program
             menu.Items.Add($"Pending: {store.PendingCount}").Enabled = false;
             menu.Items.Add($"Port: {server.Port}").Enabled = false;
             menu.Items.Add(new WinForms.ToolStripSeparator());
+            menu.Items.Add($"Sessions ({registry.Count})", null, (_, _) =>
+                app.Dispatcher.BeginInvoke(() => { cockpit.Show(); cockpit.Activate(); }));
             var notif = new WinForms.ToolStripMenuItem("Session notifications")
             { Checked = notificationsOn, CheckOnClick = true };
             notif.CheckedChanged += (_, _) => notificationsOn = notif.Checked;
@@ -89,6 +98,8 @@ public static class Program
             });
         };
         tray.ContextMenuStrip = menu;
+        tray.DoubleClick += (_, _) =>
+            app.Dispatcher.BeginInvoke(() => { cockpit.Show(); cockpit.Activate(); });
 
         app.Run();
         tray.Dispose();

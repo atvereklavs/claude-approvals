@@ -47,7 +47,10 @@ function Merge($path) {
     foreach ($spec in @(
         @{ Name = 'PermissionRequest'; Matcher = '*'; Cmd = $permCmd; Timeout = 600 },
         @{ Name = 'Stop'; Matcher = ''; Cmd = $notifyCmd; Timeout = $null },
-        @{ Name = 'Notification'; Matcher = ''; Cmd = $notifyCmd; Timeout = $null }
+        @{ Name = 'Notification'; Matcher = ''; Cmd = $notifyCmd; Timeout = $null },
+        @{ Name = 'SessionStart'; Matcher = ''; Cmd = $notifyCmd; Timeout = $null },
+        @{ Name = 'UserPromptSubmit'; Matcher = ''; Cmd = $notifyCmd; Timeout = $null },
+        @{ Name = 'SessionEnd'; Matcher = ''; Cmd = $notifyCmd; Timeout = $null }
     )) {
         $eventName = $spec.Name
         $existing = if ($hooksObj.PSObject.Properties.Name -contains $eventName) { $hooksObj.$eventName } else { @() }
@@ -97,6 +100,9 @@ Assert (@($s1.hooks.PermissionRequest).Count -eq 1) 'PermissionRequest added'
 Assert ($s1.hooks.PermissionRequest[0].hooks[0].timeout -eq 600) 'timeout=600 set'
 Assert (@($s1.hooks.Stop).Count -eq 2) 'Stop appended (foreign + ours)'
 Assert (@($s1.hooks.Notification).Count -eq 1) 'Notification added'
+Assert (@($s1.hooks.SessionStart).Count -eq 1) 'SessionStart added'
+Assert (@($s1.hooks.UserPromptSubmit).Count -eq 1) 'UserPromptSubmit added'
+Assert (@($s1.hooks.SessionEnd).Count -eq 1) 'SessionEnd added'
 Assert ($s1.hooks.Stop[0].hooks[0].command -eq 'C:\other\log.ps1') 'foreign hook untouched'
 
 # --- 2. idempotent ----------------------------------------------------------

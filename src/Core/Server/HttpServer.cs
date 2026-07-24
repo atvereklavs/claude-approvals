@@ -16,15 +16,18 @@ public sealed class ApprovalServer : IDisposable
 {
     private readonly TcpListener _listener;
     private readonly RequestStore _store;
+    private readonly SessionRegistry? _registry;
     private readonly string? _token;
     private readonly CancellationTokenSource _cts = new();
 
     public event Action<HookPayload>? OnNotify;
     public int Port { get; }
 
-    public ApprovalServer(RequestStore store, int port, string? token)
+    public ApprovalServer(RequestStore store, int port, string? token,
+                          SessionRegistry? registry = null)
     {
         _store = store;
+        _registry = registry;
         _token = token;
         _listener = new TcpListener(IPAddress.Loopback, port);
         _listener.Start();
@@ -77,6 +80,13 @@ public sealed class ApprovalServer : IDisposable
         if (request.Method == "GET" && request.Path.StartsWith("/v1/health"))
         {
             var health = new JsonObject { ["ok"] = true, ["pending"] = _store.PendingCount };
+            if (_registry is not null)
+            {
+                health["sessions"] = _registry.Count;
+                var states = new JsonObject();
+                foreach (var (k, v) in _registry.StateCounts()) states[k] = v;
+                health["states"] = states;
+            }
             await Write(stream, HttpResponseWriter.Json(200, health.ToJsonString()));
             return;
         }
@@ -142,6 +152,7 @@ public sealed class ApprovalServer : IDisposable
         if (payload is null) return;
         if (payload.HookEventName == "Stop" && payload.SessionId is not null)
             _store.SessionStopped(payload.SessionId);
+        _registry?.NoteEvent(payload);
         OnNotify?.Invoke(payload);
     }
 
