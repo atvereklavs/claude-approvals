@@ -196,7 +196,7 @@ public sealed class PopupWindow : Window
                 toggle.Margin = new Thickness(0, 2, 0, 2);
                 toggle.Content = new TextBlock
                 {
-                    Text = string.IsNullOrEmpty(opt.Description) ? opt.Label : $"{opt.Label} — {opt.Description}",
+                    Text = string.IsNullOrEmpty(opt.Description) ? opt.Label : $"{opt.Label} - {opt.Description}",
                     TextWrapping = TextWrapping.Wrap, Foreground = Brushes.White, MaxWidth = 400,
                 };
                 var qText = q.Text;

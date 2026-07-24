@@ -46,6 +46,21 @@ jobs:
       - name: Publish app (self-contained single file)
         run: dotnet publish src/App -c Release -r win-x64
 
+      - name: E2E UI tests (real desktop: launch, click, assert wire)
+        env:
+          APP_EXE: ${{ github.workspace }}\src\App\bin\Release\net8.0-windows\win-x64\publish\ClaudeApprovals.exe
+          HOOK_PS1: ${{ github.workspace }}\hooks\permission.ps1
+          E2E_SHOTS: ${{ github.workspace }}\e2e-shots
+        run: dotnet test tests/App.E2E -c Release
+
+      - name: Upload E2E screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: e2e-shots/
+          if-no-files-found: ignore
+
       - name: Stage release folder
         shell: pwsh
         run: |
