@@ -183,20 +183,20 @@ public class PopupE2ETests : IDisposable
         Skip.If(_app is null, "APP_EXE not set");
 
         var longDesc = string.Join(" ", Enumerable.Repeat("This is a deliberately verbose option description to force vertical overflow.", 2));
-        var pending = PostPermission($$"""
+        var pending = PostPermission($$$"""
         {"hook_event_name":"PermissionRequest","session_id":"e2e","cwd":"C:\\work\\demo-project",
          "tool_name":"AskUserQuestion","tool_input":{"questions":[
            {"question":"Which database should we use?","header":"DB","multiSelect":false,"options":[
-             {"label":"Postgres","description":"{{longDesc}}"},
-             {"label":"SQLite","description":"{{longDesc}}"},
-             {"label":"MySQL","description":"{{longDesc}}"},
-             {"label":"MongoDB","description":"{{longDesc}}"}]},
+             {"label":"Postgres","description":"{{{longDesc}}}"},
+             {"label":"SQLite","description":"{{{longDesc}}}"},
+             {"label":"MySQL","description":"{{{longDesc}}}"},
+             {"label":"MongoDB","description":"{{{longDesc}}}"}]},
            {"question":"Which platforms do we target?","header":"Platforms","multiSelect":true,"options":[
-             {"label":"Windows","description":"{{longDesc}}"},
-             {"label":"macOS","description":"{{longDesc}}"},
-             {"label":"Linux","description":"{{longDesc}}"}]},
+             {"label":"Windows","description":"{{{longDesc}}}"},
+             {"label":"macOS","description":"{{{longDesc}}}"},
+             {"label":"Linux","description":"{{{longDesc}}}"}]},
            {"question":"Ship behind a feature flag?","header":"Rollout","multiSelect":false,"options":[
-             {"label":"Yes","description":"{{longDesc}}"},
+             {"label":"Yes","description":"{{{longDesc}}}"},
              {"label":"No","description":"ship to everyone at once"}]}
         ]}}
         """);
