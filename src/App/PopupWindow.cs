@@ -205,17 +205,37 @@ public sealed class PopupWindow : Window
                 toggle.Unchecked += (_, _) => RemoveSelection(qText, label);
                 panel.Children.Add(toggle);
             }
+            // Free-text answer with a watermark (WPF has no built-in placeholder):
+            // a hint TextBlock behind a transparent TextBox, hidden while non-empty.
             var free = new TextBox
             {
-                Margin = new Thickness(0, 4, 0, 0), Padding = new Thickness(6),
-                Background = new SolidColorBrush(Color.FromArgb(15, 255, 255, 255)),
-                Foreground = Brushes.White, BorderThickness = new Thickness(1),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
+                Padding = new Thickness(6),
+                Background = Brushes.Transparent,
+                Foreground = Brushes.White, BorderThickness = new Thickness(0),
                 FontSize = 12, AcceptsReturn = false,
-                Tag = "Type your own answer…",
             };
+            System.Windows.Automation.AutomationProperties.SetName(free, $"Own answer: {q.Text}");
+            var hint = new TextBlock
+            {
+                Text = "Type your own answer…",
+                Foreground = new SolidColorBrush(Color.FromArgb(110, 255, 255, 255)),
+                FontStyle = FontStyles.Italic, FontSize = 12,
+                Margin = new Thickness(9, 6, 6, 6),
+                IsHitTestVisible = false,
+            };
+            free.TextChanged += (_, _) =>
+                hint.Visibility = free.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            var host = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+            host.Children.Add(new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(15, 255, 255, 255)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
+                BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6),
+            });
+            host.Children.Add(hint);
+            host.Children.Add(free);
             _freeText[q.Text] = free;
-            panel.Children.Add(free);
+            panel.Children.Add(host);
         }
         return new ScrollViewer
         {

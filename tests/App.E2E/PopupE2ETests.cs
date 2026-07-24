@@ -257,6 +257,42 @@ public class PopupE2ETests : IDisposable
     }
 
     /// <summary>
+    /// Free-text path: instead of picking an option, TYPE a custom answer into
+    /// the watermarked box and Send. Proves the placeholder box is a working
+    /// input and the typed answer round-trips.
+    /// </summary>
+    [SkippableFact]
+    public async Task TypedFreeTextAnswerRoundTrips()
+    {
+        Skip.If(_app is null, "APP_EXE not set");
+
+        var pending = PostPermission("""
+        {"hook_event_name":"PermissionRequest","session_id":"e2e","cwd":"C:\\work\\demo-project",
+         "tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Project codename?",
+         "header":"Naming","multiSelect":false,"options":[
+           {"label":"Falcon","description":"bird theme"},
+           {"label":"Orca","description":"sea theme"}]}]}}
+        """);
+
+        using var automation = new UIA3Automation();
+        var popup = WaitForPopup(automation);
+        Shot("popup-freetext-before.png");
+
+        var box = popup.FindFirstDescendant(cf => cf.ByName("Own answer: Project codename?"))?.AsTextBox();
+        Assert.NotNull(box);
+        box!.Focus();
+        box.Enter("Zeppelin");
+        Thread.Sleep(200);
+        Shot("popup-freetext-typed.png");
+
+        popup.FindFirstDescendant(cf => cf.ByName("Send"))!.AsButton()!.Invoke();
+
+        var body = (await (await pending).Content.ReadAsStringAsync()).Replace(" ", "");
+        Assert.Contains("\"behavior\":\"allow\"", body);
+        Assert.Contains("\"Projectcodename?\":\"Zeppelin\"", body);
+    }
+
+    /// <summary>
     /// The REAL integration: pipe a payload into hooks/permission.ps1 exactly as
     /// Claude Code does, click Allow on the popup it causes, and assert the
     /// script prints the decision JSON on stdout.
