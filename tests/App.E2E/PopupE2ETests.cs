@@ -229,13 +229,18 @@ public class PopupE2ETests : IDisposable
 
         // 5. Q3 sits at the BOTTOM: scroll the ScrollViewer to 100%, prove the
         //    last option becomes visible, and click it with a REAL mouse click.
+        // (VerticallyScrollable=true above already proves the content overflows;
+        //  WPF's UIA IsOffscreen ignores ScrollViewer clipping, so use geometry.)
         var yes = popup.FindFirstDescendant(cf => cf.ByName($"Yes - {longDesc}"));
         Assert.NotNull(yes);
-        Assert.True(yes!.IsOffscreen, "bottom option should start off-screen (content overflows)");
+        var windowBottom = popup.BoundingRectangle.Bottom;
+        Assert.True(yes!.BoundingRectangle.Bottom > windowBottom,
+            $"bottom option (bottom={yes.BoundingRectangle.Bottom}) should start clipped below the window (bottom={windowBottom})");
         scrollable!.Patterns.Scroll.Pattern.SetScrollPercent(-1, 100);
         Thread.Sleep(300);
         Shot("popup-multiq-scrolled.png");
-        Assert.False(yes.IsOffscreen, "bottom option should be visible after scrolling");
+        Assert.True(yes.BoundingRectangle.Bottom <= windowBottom + 1,
+            "bottom option should be inside the window after scrolling to 100%");
         yes.AsRadioButton()!.Click();
 
         // 6. Send must be clickable WITHOUT scrolling (it lives outside the scroll area).
