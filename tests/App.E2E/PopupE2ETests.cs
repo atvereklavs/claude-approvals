@@ -172,6 +172,83 @@ public class PopupE2ETests : IDisposable
     }
 
     /// <summary>
+    /// Heavy question form: 3 questions (one multi-select), long option
+    /// descriptions. Verifies the form is bounded + genuinely SCROLLABLE, that
+    /// options at the bottom can be scrolled into view and clicked, that Send
+    /// stays visible without scrolling, and that all answers round-trip.
+    /// </summary>
+    [SkippableFact]
+    public async Task LongMultiQuestionFormScrollsAndSubmitsAllAnswers()
+    {
+        Skip.If(_app is null, "APP_EXE not set");
+
+        var longDesc = string.Join(" ", Enumerable.Repeat("This is a deliberately verbose option description to force vertical overflow.", 2));
+        var pending = PostPermission($$"""
+        {"hook_event_name":"PermissionRequest","session_id":"e2e","cwd":"C:\\work\\demo-project",
+         "tool_name":"AskUserQuestion","tool_input":{"questions":[
+           {"question":"Which database should we use?","header":"DB","multiSelect":false,"options":[
+             {"label":"Postgres","description":"{{longDesc}}"},
+             {"label":"SQLite","description":"{{longDesc}}"},
+             {"label":"MySQL","description":"{{longDesc}}"},
+             {"label":"MongoDB","description":"{{longDesc}}"}]},
+           {"question":"Which platforms do we target?","header":"Platforms","multiSelect":true,"options":[
+             {"label":"Windows","description":"{{longDesc}}"},
+             {"label":"macOS","description":"{{longDesc}}"},
+             {"label":"Linux","description":"{{longDesc}}"}]},
+           {"question":"Ship behind a feature flag?","header":"Rollout","multiSelect":false,"options":[
+             {"label":"Yes","description":"{{longDesc}}"},
+             {"label":"No","description":"ship to everyone at once"}]}
+        ]}}
+        """);
+
+        using var automation = new UIA3Automation();
+        var popup = WaitForPopup(automation);
+        Shot("popup-multiq-top.png");
+
+        // 1. The popup must be height-bounded (scrolling, not growing off-screen).
+        Assert.True(popup.BoundingRectangle.Height < 700,
+            $"popup height {popup.BoundingRectangle.Height} should be bounded (<700)");
+
+        // 2. A genuinely scrollable region must exist.
+        var scrollable = popup.FindAllDescendants()
+            .FirstOrDefault(e => e.Patterns.Scroll.IsSupported &&
+                                 e.Patterns.Scroll.Pattern.VerticallyScrollable.ValueOrDefault);
+        Assert.NotNull(scrollable);
+
+        // 3. Answer Q1 (visible at the top).
+        popup.FindFirstDescendant(cf => cf.ByName($"Postgres - {longDesc}"))!.AsRadioButton()!
+            .Patterns.SelectionItem.Pattern.Select();
+
+        // 4. Q2 multi-select: toggle two platforms (may require scrolling into view).
+        foreach (var platform in new[] { "Windows", "macOS" })
+        {
+            var box = popup.FindFirstDescendant(cf => cf.ByName($"{platform} - {longDesc}"));
+            Assert.NotNull(box);
+            box!.Patterns.ScrollItem.Pattern.ScrollIntoView();
+            box.AsCheckBox()!.Patterns.Toggle.Pattern.Toggle();
+        }
+
+        // 5. Q3 sits at the BOTTOM: scroll it into view and click it for real.
+        var yes = popup.FindFirstDescendant(cf => cf.ByName($"Yes - {longDesc}"));
+        Assert.NotNull(yes);
+        yes!.Patterns.ScrollItem.Pattern.ScrollIntoView();
+        Shot("popup-multiq-scrolled.png");
+        yes.AsRadioButton()!.Click();
+
+        // 6. Send must be clickable WITHOUT scrolling (it lives outside the scroll area).
+        var send = popup.FindFirstDescendant(cf => cf.ByName("Send"))?.AsButton();
+        Assert.NotNull(send);
+        Assert.False(send!.IsOffscreen, "Send button must stay visible below the scroll area");
+        send.Invoke();
+
+        var body = (await (await pending).Content.ReadAsStringAsync()).Replace(" ", "");
+        Assert.Contains("\"behavior\":\"allow\"", body);
+        Assert.Contains("\"Whichdatabaseshouldweuse?\":\"Postgres\"", body);
+        Assert.Contains("\"Whichplatformsdowetarget?\":\"Windows,macOS\"", body);
+        Assert.Contains("\"Shipbehindafeatureflag?\":\"Yes\"", body);
+    }
+
+    /// <summary>
     /// The REAL integration: pipe a payload into hooks/permission.ps1 exactly as
     /// Claude Code does, click Allow on the popup it causes, and assert the
     /// script prints the decision JSON on stdout.
