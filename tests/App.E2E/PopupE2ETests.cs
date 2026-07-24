@@ -219,20 +219,23 @@ public class PopupE2ETests : IDisposable
         popup.FindFirstDescendant(cf => cf.ByName($"Postgres - {longDesc}"))!.AsRadioButton()!
             .Patterns.SelectionItem.Pattern.Select();
 
-        // 4. Q2 multi-select: toggle two platforms (may require scrolling into view).
+        // 4. Q2 multi-select: toggle two platforms (Toggle pattern works off-screen).
         foreach (var platform in new[] { "Windows", "macOS" })
         {
             var box = popup.FindFirstDescendant(cf => cf.ByName($"{platform} - {longDesc}"));
             Assert.NotNull(box);
-            box!.Patterns.ScrollItem.Pattern.ScrollIntoView();
-            box.AsCheckBox()!.Patterns.Toggle.Pattern.Toggle();
+            box!.AsCheckBox()!.Patterns.Toggle.Pattern.Toggle();
         }
 
-        // 5. Q3 sits at the BOTTOM: scroll it into view and click it for real.
+        // 5. Q3 sits at the BOTTOM: scroll the ScrollViewer to 100%, prove the
+        //    last option becomes visible, and click it with a REAL mouse click.
         var yes = popup.FindFirstDescendant(cf => cf.ByName($"Yes - {longDesc}"));
         Assert.NotNull(yes);
-        yes!.Patterns.ScrollItem.Pattern.ScrollIntoView();
+        Assert.True(yes!.IsOffscreen, "bottom option should start off-screen (content overflows)");
+        scrollable!.Patterns.Scroll.Pattern.SetScrollPercent(-1, 100);
+        Thread.Sleep(300);
         Shot("popup-multiq-scrolled.png");
+        Assert.False(yes.IsOffscreen, "bottom option should be visible after scrolling");
         yes.AsRadioButton()!.Click();
 
         // 6. Send must be clickable WITHOUT scrolling (it lives outside the scroll area).
