@@ -29,7 +29,36 @@ public static class Program
 
         var port = int.TryParse(Environment.GetEnvironmentVariable("CLAUDE_APPROVALS_PORT"), out var p) ? p : 8790;
         var token = LoadToken();
-        var server = new ApprovalServer(store, port, token, registry);
+
+        // Single-instance guard: the bind throws if the port is taken. A healthy
+        // sibling already serving means this copy is redundant — exit quietly and
+        // let it win. Anything else squatting the port gets a visible message.
+        ApprovalServer server;
+        try
+        {
+            server = new ApprovalServer(store, port, token, registry);
+        }
+        catch (System.Net.Sockets.SocketException)
+        {
+            bool siblingHealthy;
+            try
+            {
+                using var probe = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+                siblingHealthy = probe.GetStringAsync($"http://127.0.0.1:{port}/v1/health")
+                    .GetAwaiter().GetResult().Contains("\"ok\":true");
+            }
+            catch { siblingHealthy = false; }
+
+            if (!siblingHealthy)
+            {
+                WinForms.MessageBox.Show(
+                    $"Claude Approvals cannot start: port {port} is in use by another process.",
+                    "Claude Approvals", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+                Environment.Exit(1);
+            }
+            Environment.Exit(0); // healthy sibling serves — this copy bows out
+            return;
+        }
 
         var popup = new PopupWindow(store);
         var cockpit = new CockpitWindow(registry);
