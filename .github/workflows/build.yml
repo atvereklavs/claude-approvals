@@ -1,0 +1,66 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test-and-publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: PowerShell syntax check (hooks + installer)
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem hooks\*.ps1, installer\*.ps1 | ForEach-Object {
+            $tokens = $null; $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              Write-Host "SYNTAX ERRORS in $($_.Name):"
+              $errors | ForEach-Object { Write-Host "  $_" }
+              $failed = $true
+            } else {
+              Write-Host "ok: $($_.Name)"
+            }
+          }
+          if ($failed) { exit 1 }
+
+      - name: Settings-merge round-trip test
+        shell: pwsh
+        run: pwsh -File installer/merge-test.ps1
+
+      - name: Core tests
+        run: dotnet test tests/Core.Tests -c Release
+
+      - name: Publish app (self-contained single file)
+        run: dotnet publish src/App -c Release -r win-x64
+
+      - name: Stage release folder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory dist | Out-Null
+          Copy-Item src/App/bin/Release/net8.0-windows/win-x64/publish/ClaudeApprovals.exe dist/
+          Copy-Item -Recurse hooks dist/hooks
+          Copy-Item -Recurse installer dist/installer
+          Copy-Item README.md, TESTING.md dist/
+          Compress-Archive -Path dist/* -DestinationPath ClaudeApprovals-win-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClaudeApprovals-win-x64
+          path: ClaudeApprovals-win-x64.zip
+
+      - name: Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ClaudeApprovals-win-x64.zip
+          prerelease: ${{ contains(github.ref_name, '-') }}
