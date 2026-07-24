@@ -46,7 +46,7 @@ jobs:
       - name: Publish app (self-contained single file)
         run: dotnet publish src/App -c Release -r win-x64
 
-      - name: E2E UI tests (real desktop: launch, click, assert wire)
+      - name: "E2E UI tests - real desktop: launch, click, assert wire"
         env:
           APP_EXE: ${{ github.workspace }}\src\App\bin\Release\net8.0-windows\win-x64\publish\ClaudeApprovals.exe
           HOOK_PS1: ${{ github.workspace }}\hooks\permission.ps1
