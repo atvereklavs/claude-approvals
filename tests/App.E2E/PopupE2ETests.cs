@@ -166,7 +166,8 @@ public class PopupE2ETests : IDisposable
 
         var body = await (await pending).Content.ReadAsStringAsync();
         Assert.Contains("\"behavior\":\"allow\"", body);
-        Assert.Contains("\"Tabs or spaces?\":\"Spaces\"", body.Replace(" ", ""));
+        // De-space both sides for a whitespace-robust comparison.
+        Assert.Contains("\"Tabsorspaces?\":\"Spaces\"", body.Replace(" ", ""));
         Shot("after-question.png");
     }
 
