@@ -46,14 +46,7 @@ public static class Program
         // CLAUDE_APPROVALS_AUTOPAUSE=0 disables mic auto-pause.
         store.Paused = Environment.GetEnvironmentVariable("CLAUDE_APPROVALS_PAUSED") == "1";
         var autoPauseEnabled = Environment.GetEnvironmentVariable("CLAUDE_APPROVALS_AUTOPAUSE") != "0";
-        var mic = new MicWatcher();
-        mic.Changed += inUse => app.Dispatcher.BeginInvoke(() =>
-        {
-            store.AutoPaused = autoPauseEnabled && inUse;
-            if (store.AutoPaused && notificationsOn)
-                tray!.ShowBalloonTip(2000, "Claude Approvals",
-                    "Auto-paused: mic in use (answers go to the terminal)", WinForms.ToolTipIcon.Info);
-        });
+        var mic = new MicWatcher(); // Changed subscription wired after tray creation below
 
         // Tray icon (WinForms NotifyIcon — in-box, no dependency).
         var tray = new WinForms.NotifyIcon
@@ -127,6 +120,16 @@ public static class Program
         tray.ContextMenuStrip = menu;
         tray.DoubleClick += (_, _) =>
             app.Dispatcher.BeginInvoke(() => { cockpit.Show(); cockpit.Activate(); });
+
+        // Mic auto-pause (declared above; wired here so the balloon can use the tray).
+        mic.Changed += inUse => app.Dispatcher.BeginInvoke(() =>
+        {
+            store.AutoPaused = autoPauseEnabled && inUse;
+            if (store.AutoPaused && notificationsOn)
+                tray.ShowBalloonTip(2000, "Claude Approvals",
+                    "Auto-paused: mic in use (answers go to the terminal)", WinForms.ToolTipIcon.Info);
+        });
+        store.AutoPaused = autoPauseEnabled && mic.InUse;
 
         app.Run();
         mic.Dispose();
