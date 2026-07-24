@@ -42,6 +42,19 @@ public static class Program
         // Session notifications: balloon tips for finished / waiting sessions.
         var notificationsOn = true;
 
+        // Privacy pause. CLAUDE_APPROVALS_PAUSED=1 starts paused (dev/E2E);
+        // CLAUDE_APPROVALS_AUTOPAUSE=0 disables mic auto-pause.
+        store.Paused = Environment.GetEnvironmentVariable("CLAUDE_APPROVALS_PAUSED") == "1";
+        var autoPauseEnabled = Environment.GetEnvironmentVariable("CLAUDE_APPROVALS_AUTOPAUSE") != "0";
+        var mic = new MicWatcher();
+        mic.Changed += inUse => app.Dispatcher.BeginInvoke(() =>
+        {
+            store.AutoPaused = autoPauseEnabled && inUse;
+            if (store.AutoPaused && notificationsOn)
+                tray!.ShowBalloonTip(2000, "Claude Approvals",
+                    "Auto-paused: mic in use (answers go to the terminal)", WinForms.ToolTipIcon.Info);
+        });
+
         // Tray icon (WinForms NotifyIcon — in-box, no dependency).
         var tray = new WinForms.NotifyIcon
         {
@@ -53,7 +66,7 @@ public static class Program
         // the popup itself is the notification then).
         server.OnNotify += payload => app.Dispatcher.BeginInvoke(() =>
         {
-            if (!notificationsOn || store.PendingCount > 0) return;
+            if (!notificationsOn || store.PendingCount > 0 || store.EffectivePaused) return;
             var label = payload.SessionLabel;
             switch (payload.HookEventName)
             {
@@ -75,6 +88,20 @@ public static class Program
             menu.Items.Add(new WinForms.ToolStripSeparator());
             menu.Items.Add($"Sessions ({registry.Count})", null, (_, _) =>
                 app.Dispatcher.BeginInvoke(() => { cockpit.Show(); cockpit.Activate(); }));
+            var pauseItem = new WinForms.ToolStripMenuItem(
+                store.Paused ? "Resume approvals" : "Pause approvals (answer in terminal)")
+            { Checked = store.Paused };
+            pauseItem.Click += (_, _) => store.Paused = !store.Paused;
+            menu.Items.Add(pauseItem);
+            var autoItem = new WinForms.ToolStripMenuItem(
+                store.AutoPaused ? "Auto-paused: on a call (mic in use)" : "Auto-pause during calls")
+            { Checked = autoPauseEnabled, CheckOnClick = true };
+            autoItem.CheckedChanged += (_, _) =>
+            {
+                autoPauseEnabled = autoItem.Checked;
+                store.AutoPaused = autoPauseEnabled && mic.InUse;
+            };
+            menu.Items.Add(autoItem);
             var notif = new WinForms.ToolStripMenuItem("Session notifications")
             { Checked = notificationsOn, CheckOnClick = true };
             notif.CheckedChanged += (_, _) => notificationsOn = notif.Checked;
@@ -102,6 +129,7 @@ public static class Program
             app.Dispatcher.BeginInvoke(() => { cockpit.Show(); cockpit.Activate(); });
 
         app.Run();
+        mic.Dispose();
         tray.Dispose();
     }
 

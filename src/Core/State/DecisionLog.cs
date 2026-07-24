@@ -68,6 +68,7 @@ public static class DecisionLog
         DecisionSource.AutoAllow => "autoAllow",
         DecisionSource.Timeout => "timeout",
         DecisionSource.ClientDropped => "clientDropped",
+        DecisionSource.Paused => "paused",
         _ => "unknown",
     };
 

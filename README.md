@@ -58,6 +58,14 @@ also delete your rules + decision log).
 Every decision (including auto-approvals from your rules) is recorded in
 `%APPDATA%\ClaudeApprovals\decisions.jsonl` — tray menu → *Open decision log*.
 
+## Privacy pause
+
+Tray menu → *Pause approvals*: every request falls straight through to the
+normal terminal prompt - nothing pops over your screen. **Auto-pause during
+calls** (default on) does this automatically while any app is using your
+microphone, and resumes when the call ends. Paused fall-throughs are still
+recorded in the decision log.
+
 ## Session notifications
 
 A balloon notification appears when a session **finishes** or is **waiting for

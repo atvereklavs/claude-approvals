@@ -118,6 +118,42 @@ public class StoreTests
     }
 
     [Fact]
+    public void PausedFallsThroughSilently()
+    {
+        using var store = new RequestStore(TimeSpan.FromMinutes(10));
+        store.Paused = true;
+        string? body = "sentinel";
+        DecisionSource? source = null;
+        var enqueued = false;
+        store.OnEnqueue += _ => enqueued = true;
+        store.OnOutcome += (_, _, s) => source = s;
+
+        var id = store.Enqueue(P("""{"tool_name":"Bash","session_id":"s","tool_input":{"command":"secret"}}"""), b => body = b);
+        Assert.Null(id);
+        Assert.Null(body);                       // empty response → terminal prompt
+        Assert.False(enqueued);                  // nothing displayed/announced
+        Assert.Equal(DecisionSource.Paused, source);
+        Assert.Equal(0, store.PendingCount);
+    }
+
+    [Fact]
+    public void AutoPauseIsIndependentOfManualPause()
+    {
+        using var store = new RequestStore(TimeSpan.FromMinutes(10));
+        store.AutoPaused = true;
+        Assert.True(store.EffectivePaused);
+        store.Paused = true;
+        store.AutoPaused = false;                // call ends
+        Assert.True(store.EffectivePaused);      // manual pause still holds
+        store.Paused = false;
+        Assert.False(store.EffectivePaused);
+
+        // Resumed store behaves normally.
+        var id = store.Enqueue(P("""{"tool_name":"Bash","session_id":"s","tool_input":{"command":"ls"}}"""), _ => { });
+        Assert.NotNull(id);
+    }
+
+    [Fact]
     public void DecisionLogRecordFormat()
     {
         var p = P("""{"session_id":"s1","cwd":"/x/proj","tool_name":"Bash","tool_input":{"command":"git push"}}""");

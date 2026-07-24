@@ -8,6 +8,7 @@ public enum DecisionSource
     AutoAllow,
     Timeout,
     ClientDropped,
+    Paused,
 }
 
 /// <summary>

@@ -40,6 +40,14 @@ public sealed class RequestStore : IDisposable
     public SessionRuleStore? SessionRules { get; set; }
     public ProjectRuleStore? ProjectRules { get; set; }
 
+    /// <summary>Manual privacy pause: everything falls through to the terminal.</summary>
+    public volatile bool Paused;
+    /// <summary>Auto-pause (mic in use). Independent of the manual flag so a call
+    /// ending never clears a deliberate pause.</summary>
+    public volatile bool AutoPaused;
+
+    public bool EffectivePaused => Paused || AutoPaused;
+
     public event Action<PendingRequest>? OnEnqueue;
     public event Action<PendingRequest, Decision?, DecisionSource>? OnResolve;
     /// <summary>Every terminal outcome, incl. auto-allow + drops (audit hook).</summary>
@@ -62,6 +70,15 @@ public sealed class RequestStore : IDisposable
     {
         var request = new PendingRequest { Payload = payload, Summary = ToolSummary.Make(payload) };
         request.AttachResponder(respond);
+
+        // Privacy pause: hand the decision straight back to the terminal —
+        // checked BEFORE auto-allow so nothing at all surfaces while paused.
+        if (EffectivePaused)
+        {
+            request.Fulfil(null);
+            OnOutcome?.Invoke(request, new Decision.NoOpinion(), DecisionSource.Paused);
+            return null;
+        }
 
         var sessionHit = SessionRules?.Matches(payload) ?? false;
         var projectHit = ProjectRules?.Matches(payload) ?? false;
