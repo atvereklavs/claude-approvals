@@ -58,6 +58,12 @@ also delete your rules + decision log).
 Every decision (including auto-approvals from your rules) is recorded in
 `%APPDATA%\ClaudeApprovals\decisions.jsonl` — tray menu → *Open decision log*.
 
+## Session notifications
+
+A balloon notification appears when a session **finishes** or is **waiting for
+your input** (only while no approval card is up). Toggle via tray menu →
+*Session notifications*.
+
 ## Architecture
 
 ```

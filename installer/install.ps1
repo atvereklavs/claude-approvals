@@ -98,6 +98,7 @@ function Add-HookEvent($eventName, $matcher, $command, $timeout) {
 
 Add-HookEvent 'PermissionRequest' '*' $permCmd 600
 Add-HookEvent 'Stop' '' $notifyCmd $null
+Add-HookEvent 'Notification' '' $notifyCmd $null
 
 # Validate by re-parsing before overwriting the real file.
 $json = $settings | ConvertTo-Json -Depth 16
@@ -106,7 +107,7 @@ $tmp = "$settingsPath.tmp.$PID"
 New-Item -ItemType Directory -Force -Path (Split-Path $settingsPath) | Out-Null
 $json | Set-Content -Encoding UTF8 $tmp
 Move-Item $tmp $settingsPath -Force
-Write-Host "    hooks registered (PermissionRequest timeout=600, Stop)"
+Write-Host "    hooks registered (PermissionRequest timeout=600, Stop, Notification)"
 
 # --- 5. autostart + launch + health ----------------------------------------
 Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' `

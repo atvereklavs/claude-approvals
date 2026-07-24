@@ -32,6 +32,9 @@ public static class Program
         store.OnEnqueue += _ => app.Dispatcher.BeginInvoke(popup.ShowNext);
         store.OnResolve += (_, _, _) => app.Dispatcher.BeginInvoke(popup.ShowNext);
 
+        // Session notifications: balloon tips for finished / waiting sessions.
+        var notificationsOn = true;
+
         // Tray icon (WinForms NotifyIcon — in-box, no dependency).
         var tray = new WinForms.NotifyIcon
         {
@@ -39,6 +42,23 @@ public static class Program
             Visible = true,
             Text = "Claude Approvals",
         };
+        // Balloons for passive session events (suppressed while a card is up —
+        // the popup itself is the notification then).
+        server.OnNotify += payload => app.Dispatcher.BeginInvoke(() =>
+        {
+            if (!notificationsOn || store.PendingCount > 0) return;
+            var label = payload.SessionLabel;
+            switch (payload.HookEventName)
+            {
+                case "Stop":
+                    tray!.ShowBalloonTip(3000, "Claude Code", $"{label} finished", WinForms.ToolTipIcon.Info);
+                    break;
+                case "Notification" when payload.NotificationType == "idle_prompt":
+                    tray!.ShowBalloonTip(3000, "Claude Code", $"{label} is waiting for you", WinForms.ToolTipIcon.Warning);
+                    break;
+            }
+        });
+
         var menu = new WinForms.ContextMenuStrip();
         menu.Opening += (_, _) =>
         {
@@ -46,6 +66,10 @@ public static class Program
             menu.Items.Add($"Pending: {store.PendingCount}").Enabled = false;
             menu.Items.Add($"Port: {server.Port}").Enabled = false;
             menu.Items.Add(new WinForms.ToolStripSeparator());
+            var notif = new WinForms.ToolStripMenuItem("Session notifications")
+            { Checked = notificationsOn, CheckOnClick = true };
+            notif.CheckedChanged += (_, _) => notificationsOn = notif.Checked;
+            menu.Items.Add(notif);
             menu.Items.Add("Clear session rules", null, (_, _) => store.SessionRules?.ClearAll());
             menu.Items.Add($"Clear project rules ({store.ProjectRules?.Count ?? 0})", null,
                 (_, _) => store.ProjectRules?.ClearAll());
