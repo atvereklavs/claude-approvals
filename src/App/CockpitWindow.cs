@@ -72,8 +72,6 @@ public sealed class CockpitWindow : Window
         foreach (var s in sessions)
         {
             var row = new DockPanel { Margin = new Thickness(0, 3, 0, 3) };
-            System.Windows.Automation.AutomationProperties.SetName(
-                row, $"session:{s.Label}:{s.StateLabel}");
 
             var dot = MakeDot(ColorFor(s.DisplayState));
             DockPanel.SetDock(dot, Dock.Left);
@@ -96,11 +94,7 @@ public sealed class CockpitWindow : Window
                 Margin = new Thickness(9, 0, 0, 0),
                 Children =
                 {
-                    new TextBlock
-                    {
-                        Text = s.Label, Foreground = Brushes.White,
-                        FontWeight = FontWeights.SemiBold, FontSize = 12,
-                    },
+                    MakeLabel(s),
                     new TextBlock
                     {
                         Text = $"{s.StateLabel} · {Relative(s.LastActivity)}",
@@ -127,6 +121,22 @@ public sealed class CockpitWindow : Window
         if (s < 60) return $"{s}s ago";
         if (s < 3600) return $"{s / 60}m ago";
         return $"{s / 3600}h ago";
+    }
+
+    /// <summary>
+    /// Session label carrying the automation name — WPF panels have no UIA peer,
+    /// so the machine-readable "session:label:state" id lives on the TextBlock.
+    /// </summary>
+    private static TextBlock MakeLabel(SessionInfo s)
+    {
+        var label = new TextBlock
+        {
+            Text = s.Label, Foreground = Brushes.White,
+            FontWeight = FontWeights.SemiBold, FontSize = 12,
+        };
+        System.Windows.Automation.AutomationProperties.SetName(
+            label, $"session:{s.Label}:{s.StateLabel}");
+        return label;
     }
 
     /// <summary>A vertically-centered state dot (Ellipse is sealed in WPF).</summary>
