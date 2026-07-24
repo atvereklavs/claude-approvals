@@ -75,7 +75,7 @@ public sealed class CockpitWindow : Window
             System.Windows.Automation.AutomationProperties.SetName(
                 row, $"session:{s.Label}:{s.StateLabel}");
 
-            var dot = new Ellipse2(ColorFor(s.DisplayState));
+            var dot = MakeDot(ColorFor(s.DisplayState));
             DockPanel.SetDock(dot, Dock.Left);
             row.Children.Add(dot);
 
@@ -129,14 +129,12 @@ public sealed class CockpitWindow : Window
         return $"{s / 3600}h ago";
     }
 
-    /// <summary>A vertically-centered state dot.</summary>
-    private sealed class Ellipse2 : System.Windows.Shapes.Ellipse
+    /// <summary>A vertically-centered state dot (Ellipse is sealed in WPF).</summary>
+    private static System.Windows.Shapes.Ellipse MakeDot(Color c) => new()
     {
-        public Ellipse2(Color c)
-        {
-            Width = 9; Height = 9;
-            Fill = new SolidColorBrush(c);
-            VerticalAlignment = VerticalAlignment.Center;
-        }
-    }
+        Width = 9,
+        Height = 9,
+        Fill = new SolidColorBrush(c),
+        VerticalAlignment = VerticalAlignment.Center,
+    };
 }
